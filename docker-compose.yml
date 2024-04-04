@@ -1,0 +1,151 @@
+#version: "3.9"
+
+########################### NETWORKS
+networks:
+    frontend:
+      driver: bridge
+    backend:
+      driver: bridge
+
+########################### VOLUMES
+volumes:
+    nginx_conf:
+      driver: local      
+    nginx_www:
+      driver: local
+    nginx_log:
+      driver: local
+    uptime_kuma_data:
+      driver: local
+    umami-db-data:
+      driver: local
+    glances_data:
+      driver: local
+
+########################### SERVICES
+services:
+
+###################### Publicly available
+  tunnel:
+    env_file: .env
+    container_name: cloudflared-tunnel
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=$TUNNEL_TOKEN
+    networks:
+      - frontend
+      - backend
+
+  dozzle:
+    container_name: dozzle
+    image: amir20/dozzle:latest
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - 8888:8080
+    networks:
+      - frontend
+  
+  nginx:
+    env_file: .env
+    image: nginx:latest
+    # ports:
+    #   - "80:80"
+    #   - "443:443"
+    restart: unless-stopped
+    volumes:
+      - nginx_conf:/etc/nginx/conf.d
+      - nginx_www:/usr/share/nginx/html
+      - nginx_log:/var/log/nginx
+    networks:
+      - frontend
+
+  uptime-kuma:
+    env_file: .env
+    image: louislam/uptime-kuma:1
+    volumes:
+      - uptime_kuma_data:/app/data
+    ports:
+       - "3001:3001"
+    restart: unless-stopped
+    networks:
+      - frontend
+  
+  umami:
+    env_file: .env
+    image: ghcr.io/umami-software/umami:postgresql-latest
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: $UMAMI_DATABASE_URL
+      DATABASE_TYPE: postgresql
+      APP_SECRET: $UMAMI_APP_SECRET
+    depends_on:
+      umami-db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl http://localhost:3000/api/heartbeat"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - frontend
+      - backend
+
+###################### Internal only
+  watchtower:
+    env_file: .env
+    image: containrrr/watchtower
+    ports:
+      - "8666:8080"
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+      - WATCHTOWER_HTTP_API_UPDATE=true
+      - WATCHTOWER_HTTP_API_TOKEN=$WATCHTOWER_HTTP_API_TOKEN
+      - WATCHTOWER_HTTP_API_PERIODIC_POLLS=true
+      - WATCHTOWER_HTTP_API_METRICS=true
+      - WATCHTOWER_ROLLING_RESTART=false
+      - WATCHTOWER_TIMEOUT=60s
+  
+  monitoring:
+    env_file: .env
+    image: nicolargo/glances:latest
+    restart: unless-stopped
+    pid: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro 
+      - glances_data:/glances/conf
+    environment:
+      - "GLANCES_OPT=-w -s"
+    ports:
+      - "8020:61208"
+    networks:
+      - backend
+      
+  umami-db:
+    env_file: .env
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: umami
+      POSTGRES_USER: $UMAMI_DB_USER
+      POSTGRES_PASSWORD: $UMAMI_DB_PASSWORD
+    volumes:
+      - umami-db-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+###################### WIP
