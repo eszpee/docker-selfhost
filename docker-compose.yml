@@ -27,7 +27,6 @@ services:
 
 ###################### Publicly available
   tunnel:
-    env_file: .env
     container_name: cloudflared-tunnel
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
@@ -50,7 +49,6 @@ services:
       - frontend
   
   nginx:
-    env_file: .env
     image: nginx:latest
     # ports:
     #   - "80:80"
@@ -64,7 +62,6 @@ services:
       - frontend
 
   uptime-kuma:
-    env_file: .env
     image: louislam/uptime-kuma:1
     volumes:
       - uptime_kuma_data:/app/data
@@ -75,7 +72,6 @@ services:
       - frontend
   
   umami:
-    env_file: .env
     image: ghcr.io/umami-software/umami:postgresql-latest
     ports:
       - "3000:3000"
@@ -98,7 +94,6 @@ services:
 
 ###################### Internal only
   watchtower:
-    env_file: .env
     image: containrrr/watchtower
     ports:
       - "8666:8080"
@@ -116,7 +111,6 @@ services:
       - WATCHTOWER_TIMEOUT=60s
   
   monitoring:
-    env_file: .env
     image: nicolargo/glances:latest
     restart: unless-stopped
     pid: host
@@ -124,14 +118,13 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro 
       - glances_data:/glances/conf
     environment:
-      - "GLANCES_OPT=-w -s"
+      - "GLANCES_OPT=-w"
     ports:
       - "8020:61208"
     networks:
       - backend
       
   umami-db:
-    env_file: .env
     image: postgres:15-alpine
     environment:
       POSTGRES_DB: umami
