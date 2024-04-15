@@ -131,6 +131,22 @@ services:
       - WATCHTOWER_HTTP_API_METRICS=true
       - WATCHTOWER_ROLLING_RESTART=false
       - WATCHTOWER_TIMEOUT=60s
+
+
+      - WATCHTOWER_SCHEDULE=0 30 5 * * *
+      - WATCHTOWER_REMOVE_VOLUMES=true
+
+      - WATCHTOWER_MONITOR_ONLY=false
+      - WATCHTOWER_NOTIFICATIONS=email
+      - WATCHTOWER_NOTIFICATIONS_HOSTNAME=Selfhost
+      - WATCHTOWER_NOTIFICATION_EMAIL_FROM=eszpee+proxmox-selfhost-watchtower@gmail.com
+      - WATCHTOWER_NOTIFICATION_EMAIL_TO=eszpee+proxmox-selfhost-watchtower@gmail.com
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER=smtp.gmail.com
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PORT=587
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_USER=eszpee@gmail.com
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PASSWORD=${SMTP_PASSWORD}
+      - TZ=$TZ
+
   
   monitoring:
     image: nicolargo/glances:latest
